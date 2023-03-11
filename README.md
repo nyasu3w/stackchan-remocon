@@ -20,7 +20,7 @@ WiFIのアクセスポイントになること、サーボ（首振り）のオ�
 
 
 ### ソースコード
-ソースコードは基本的に、[stack-chan-tester](https://github.com/mongonta0716/)stack-chan-tester に各種サンプルを組み合わせてロジックを足し（まくっ）たものです。引いてもいます。
+ソースコードは基本的に、mongonta0716さんの[stack-chan-tester](https://github.com/mongonta0716/)に各種サンプルを組み合わせてロジックを足し（まくっ）たものです。引いてもいます。だらだらと長いです。
 
 参考にしたサンプル
 - M5Stack-Avatarのサンプル諸々
