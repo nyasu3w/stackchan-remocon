@@ -846,6 +846,23 @@ void setup() {
   avatar.setSpeechFont(&fonts::efontJA_12);
 }
 
+void suspenOrResumedStackchanTasks(bool want_suspend){
+  static TaskHandle_t drawTaskHandle=0;
+  if(drawTaskHandle==0) drawTaskHandle = xTaskGetHandle("drawLoop");
+
+  if(want_suspend){
+    eTaskState s;
+    while((s=eTaskGetState(drawTaskHandle)) != eSuspended){
+//      Serial.printf("waiting thread suspended[%d]\n",s);
+      vTaskSuspend(drawTaskHandle);  
+      delay(50);
+    }
+  } else {
+    if(drawTaskHandle!=0) vTaskResume(drawTaskHandle);  // reversed order
+  }
+}
+
+
 void loop() {
   M5.update();
   if(wifi_enabled) {
@@ -873,34 +890,30 @@ void loop() {
   }
 
   if(M5.BtnB.wasReleased()) {  // BtnB for QR code
-    // implement by myself before avatar.suspend(); is released
-      static TaskHandle_t drawTaskHandle=0;
-      if(drawTaskHandle==0) drawTaskHandle = xTaskGetHandle("drawLoop");
-      if(drawTaskHandle!=0) vTaskSuspend(drawTaskHandle);
-    //
-    delay(100);
+    suspenOrResumedStackchanTasks(true);
+ 
     char buf[128];
     snprintf(buf,128,"WIFI:T:WPA;S:%s;P:%s",ssid,password);
     M5.Lcd.qrcode(buf,70,0,180,5);
     M5.Lcd.setTextSize(2);
-    M5.Lcd.setCursor(0,190);
-    M5.Lcd.println("");
-    M5.Lcd.println("Press center button again");
-    while(true){
+    M5.Lcd.setCursor(156,215);
+    M5.Lcd.print("v");
+    M5.Lcd.setCursor(20,180);
+    M5.Lcd.println("Connect with this QRcode");
+    M5.Lcd.println("    Or press | to exit");
+    while(!server.available()){
       delay(100);
       M5.update();
       if(M5.BtnB.wasReleased())break;
     }
-    // implement by myself before avatar.resume(); is released
-      if(drawTaskHandle!=0) vTaskResume(drawTaskHandle);
-    //
+    suspenOrResumedStackchanTasks(false);
   }
 
   static bool param_cleared=false;
   if(M5.BtnC.pressedFor(5000)){ // long press of BtnC for clear parameters.
     if(!param_cleared) {
       clear_params();
-      baloon_speak("cleared!");          
+      baloon_speak("cleared!");
       param_cleared=true;
     }
   } if(M5.BtnC.pressedFor(10000)){ // long press of BtnC for clear wifi parameters.
