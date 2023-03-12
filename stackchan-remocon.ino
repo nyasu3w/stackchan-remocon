@@ -873,22 +873,27 @@ void loop() {
   }
 
   if(M5.BtnB.wasReleased()) {  // BtnB for QR code
-    avatar.setSpeechText("Need reset to exit QRcode");
-    avatar.stop();
+    // implement by myself before avatar.suspend(); is released
+      static TaskHandle_t drawTaskHandle=0;
+      if(drawTaskHandle==0) drawTaskHandle = xTaskGetHandle("drawLoop");
+      if(drawTaskHandle!=0) vTaskSuspend(drawTaskHandle);
+    //
+    delay(100);
     char buf[128];
     snprintf(buf,128,"WIFI:T:WPA;S:%s;P:%s",ssid,password);
     M5.Lcd.qrcode(buf,70,0,180,5);
     M5.Lcd.setTextSize(2);
     M5.Lcd.setCursor(0,190);
-    M5.Lcd.println("Reset to exit QRcode disp.");
-    M5.Lcd.println("リセットでQRrcodeから戻る");
-    while(!server.available()){
+    M5.Lcd.println("");
+    M5.Lcd.println("Press center button again");
+    while(true){
       delay(100);
-      if(M5.BtnC.wasReleased())break;
       M5.update();
+      if(M5.BtnB.wasReleased())break;
     }
-    ESP.restart();
-    Serial.println("Need RESTART");
+    // implement by myself before avatar.resume(); is released
+      if(drawTaskHandle!=0) vTaskResume(drawTaskHandle);
+    //
   }
 
   static bool param_cleared=false;
