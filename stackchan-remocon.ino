@@ -119,6 +119,7 @@ void moveY(int y, uint32_t millis_for_move = 0) {
 }
 
 void moveXY(int x, int y, uint32_t millis_for_move = 0) {
+  updateAndWaitForAllServosToStop();
   if (millis_for_move == 0) {
     servo_x.setEaseTo(x + servo_offset_x);
     servo_y.setEaseTo(y + servo_offset_y);
@@ -126,8 +127,7 @@ void moveXY(int x, int y, uint32_t millis_for_move = 0) {
     servo_x.setEaseToD(x + servo_offset_x, millis_for_move);
     servo_y.setEaseToD(y + servo_offset_y, millis_for_move);
   }
-  // サーボが停止するまでウェイトします。
-  synchronizeAllServosStartAndWaitForAllServosToStop();
+  //サーボの更新は関数の最初に移動してここでブロックはしない
 }
 
 void moveRandom() {
@@ -227,7 +227,8 @@ void loop_scaling(){
 void loop_avatar(){
   static long next_move_time = 0;
   long now=millis();
-  if( next_move_time < now && servo_enabled){  // move servo
+  bool stopped = updateAllServos();
+  if( next_move_time < now && servo_enabled && stopped){  // move servo
     moveRandom();  
     next_move_time = millis() + 100 + random(0,move_freq)*100;  // not use variable "now"
   } else {  // ls speaking or shut up
@@ -530,6 +531,7 @@ void output_settingpage_contents(WiFiClient& client){
                  " <a href=\"/c?expression=5\">Sad</a>"
 "  <li><a href=\"/c?rotate \">Rotate face(cw)</a>, "
      " <a href=\"/c?rotater \">Rotate face(ccw)</a>"
+"  <li><a href=\"/c?scale \">Scaling anim</a>, "
 "  <li><form action=\"/c\">param string <input type=\"text\" name=\"params\" placeholder=\"xo0yo0xl45xu135yl60yu90eb3ef10fq100ss15\"></form>"
 "  <li>Moving Frequency <a href=\"/c?params=fq10 \">10*more</a>"
      " <a href=\"/c?params=fq100 \">default</a>"
@@ -679,6 +681,10 @@ void output_page(WiFiClient& client, String& file){
     client.println();
     output_setting_json(client);
     break;
+  case 'n':
+     // no output
+    client.println();
+     break;
   case 'a':
     output_htmloutput_header(client);
     client.println("<body><h3>Another world</h3>");
@@ -703,6 +709,9 @@ const char* process_request(const String& req){
   Serial.println("processing type:"+req.substring(0,2));
   if(req.substring(0,2)=="c?") {  // requested url is setting page
     if(req.length()>0) request_parse(req.substring(2));  // else do nothing
+  } else if(req.substring(0,2)=="d?") {  // request without html page
+    if(req.length()>0) request_parse(req.substring(2));
+    ret="n";
   } else if(req.substring(0,2)=="w?") {
     wifisetting_parse(req.substring(6));
     ret="w";
