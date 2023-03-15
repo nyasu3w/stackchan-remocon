@@ -4,6 +4,7 @@
 #include <WiFiClient.h>
 #include <WiFiAP.h>
 #include <DNSServer.h>
+#include <BluetoothSerial.h>
 
 #include <M5Unified.h>
 #include <Avatar.h>
@@ -26,6 +27,10 @@ WiFiServer server(80);
 DNSServer dnsServer;  // for Captive portal
 
 constexpr const char *stackchan_url = "stackchan.home.arpa";
+
+// for BluetoothSerial
+BluetoothSerial BtSerial;
+
 
 // for M5Stack_avatar
 using namespace m5avatar;
@@ -683,6 +688,7 @@ void output_page(WiFiClient& client, String& file){
     break;
   case 'n':
      // no output
+    output_htmloutput_header(client);
     client.println();
      break;
   case 'a':
@@ -786,27 +792,28 @@ void loop_server() {
 
 /************************************************/
 // ==== serial ====
-void loop_serial(){
+
+template <class T> void loop_serial(T& ser) {
   static String linebuf="";
   static int len=0;
-  while(Serial.available()){
-    char c = Serial.read();
+  while(ser.available()){
+    char c = ser.read();
     if (c == '\n') {      
-      Serial.println("Serial Text:" + linebuf);
+      ser.println("Serial Text:" + linebuf);
       if(linebuf.charAt(1)=='?') {  // requested url is setting page
         process_request(linebuf);
       } else if(linebuf=="settings"){
-        Serial.println("Setting values");
-        Serial.printf("servo_offset_x/y: [%d,%d]\n",servo_offset_x,servo_offset_y);
-        Serial.printf("servo_x_min/max : [%d,%d]\n",servo_x_min,servo_x_max);
-        Serial.printf("servo_y_min/max : [%d,%d]\n",servo_y_min,servo_y_max);
-        Serial.printf("ease delay time : 100*(%d +rnd(0-%d)) ms\n",easedelay_base,easedelay_factor);
-        Serial.printf("move frequency  : %d\n",move_freq);
-        Serial.printf("speak speed     : %d\n",speak_speed);
-        Serial.printf("face#           : %d\n",selected_face);
-        Serial.printf("color pri/bak   : [%d , %d]\n",primary_color, background_color);
-        Serial.printf("SD Card         : %s\n",(sd_enabled)?"enabled":"disabled");
-        Serial.printf("WiFiAP          : %s\n",(wifi_enabled)?"enabled":"disabled");
+        ser.println("Setting values");
+        ser.printf("servo_offset_x/y: [%d,%d]\n",servo_offset_x,servo_offset_y);
+        ser.printf("servo_x_min/max : [%d,%d]\n",servo_x_min,servo_x_max);
+        ser.printf("servo_y_min/max : [%d,%d]\n",servo_y_min,servo_y_max);
+        ser.printf("ease delay time : 100*(%d +rnd(0-%d)) ms\n",easedelay_base,easedelay_factor);
+        ser.printf("move frequency  : %d\n",move_freq);
+        ser.printf("speak speed     : %d\n",speak_speed);
+        ser.printf("face#           : %d\n",selected_face);
+        ser.printf("color pri/bak   : [%d , %d]\n",primary_color, background_color);
+        ser.printf("SD Card         : %s\n",(sd_enabled)?"enabled":"disabled");
+        ser.printf("WiFiAP          : %s\n",(wifi_enabled)?"enabled":"disabled");
       }
       linebuf="";
     } else if (c != '\r') { 
@@ -822,7 +829,6 @@ void loop_serial(){
 void setup() {
   M5.begin();
 
-
   // for avatar
   avatar.init();
 
@@ -836,6 +842,8 @@ void setup() {
   auto mac = WiFi.macAddress();
   snprintf(stackchan_id,sizeof(stackchan_id)/sizeof(*stackchan_id),"%2x%2x",mac[0],mac[1]);
   snprintf(ssid,wifiap_len,"%s%s",ssidbase,stackchan_id);
+
+  BtSerial.begin(ssid);   //reuse ssid as bluetooth device name
 
   setup_servos();
 
@@ -878,7 +886,8 @@ void loop() {
     loop_server();
     dnsServer.processNextRequest();
   }
-  loop_serial();
+  loop_serial<HardwareSerial>(Serial);
+  loop_serial<BluetoothSerial>(BtSerial);
   loop_avatar();
 
   if(M5.BtnA.wasReleased()){   // BtnA for move/nomove
